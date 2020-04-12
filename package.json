@@ -1,0 +1,35 @@
+{
+  "name": "photoframe",
+  "version": "0.0.1",
+  "description": "Display images on a Samsung SPF-83H photo frame with node.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/henrythasler/photoframe.git"
+  },
+  "keywords": [
+    "Samsung",
+    "SPF-83H",
+    "typescript"
+  ],
+  "author": "Henry Thasler",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/henrythasler/photoframe/issues"
+  },
+  "homepage": "https://github.com/henrythasler/photoframe#readme",
+  "dependencies": {
+    "jimp": "^0.10.1",
+    "sharp": "^0.25.2",
+    "usb": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/jimp": "^0.2.28",
+    "@types/node": "^13.11.1",
+    "@types/sharp": "^0.24.0",
+    "@types/usb": "^1.5.1"
+  }
+}
