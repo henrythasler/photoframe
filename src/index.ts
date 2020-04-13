@@ -1,15 +1,24 @@
-import {PhotoFrame} from "./photoframe";
+import { PhotoFrame } from "./photoframe";
 
 const frame = new PhotoFrame();
 
-async function main(){
+async function main() {
     // await frame.sendFile("/home/henry/screenshot.png");
-    await frame.sendFile("/home/henry/Selection_201.png");  
+    await frame.sendFile("/home/henry/Selection_201.png");
 }
 
-frame.open().then(()=> {
-    setInterval(main, 2000);
-}).catch(() => {
-    console.log("could not open device.")
-});
+async function start() {
+    frame.open().then((res) => {
+        if (res === 0) {
+            setInterval(main, 2000);
+        }
+        else {
+            console.log(`Could not open device. Error ${res}`);
 
+        }
+    }).catch((err) => {
+        console.log(`Error opening device. ${err}`);
+    });
+}
+
+start();

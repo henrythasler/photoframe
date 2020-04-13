@@ -1,7 +1,5 @@
 import { findByIds, Device, OutEndpoint, LibUSBException } from 'usb';
 import sharp from 'sharp';
-import Jimp from 'jimp';
-
 
 /** 
  * https://beyondlogic.org/usbnutshell/usb6.shtml
@@ -59,28 +57,30 @@ export class PhotoFrame {
         pid: 0x200d
     }
 
-    constructor(logLevel: number = LogLevels.ERROR) {
-        // this.log = new Log(logLevel);
-        this.log = new Log(LogLevels.TRACE);
+    constructor(logLevel: number = LogLevels.TRACE) {
+        this.log = new Log(logLevel);
     }
 
-    async asyncControlTransfer(device: Device, bmRequestType: number, bRequest: number, wValue: number, wIndex: number, data: Buffer): Promise<string> {
-        return new Promise<string>((resolve, reject) => {
+    async asyncControlTransfer(device: Device, bmRequestType: number, bRequest: number, wValue: number, wIndex: number, data: Buffer): Promise<LibUSBException> {
+        return new Promise<LibUSBException>((resolve, reject) => {
             device.controlTransfer(bmRequestType, bRequest, wValue, wIndex, data, err => {
                 if (err) {
-                    reject(new Error('failed'));
+                    this.log.show(`error in device.controlTransfer(): ${err.errno} ${err.message}`, LogLevels.TRACE);
+                    reject(err);
                 }
+                this.log.show(`done device.controlTransfer().`, LogLevels.TRACE);
                 resolve();
             })
         });
     }
 
-    async asyncTransferOut(data: Buffer, endpoint: OutEndpoint): Promise<string> {
-        return new Promise<string>((resolve, reject) => {
+    async asyncTransferOut(data: Buffer, endpoint: OutEndpoint): Promise<LibUSBException> {
+        return new Promise<LibUSBException>((resolve, reject) => {
             this.log.show(`starting endpoint.transfer.`, LogLevels.TRACE);
             endpoint.transfer(data, err => {
                 if (err) {
-                    reject(new Error('failed'));
+                    this.log.show(`error in endpoint.transfer(): ${err.errno} ${err.message}`, LogLevels.TRACE);
+                    reject(err);
                 }
                 this.log.show(`done endpoint.transfer.`, LogLevels.TRACE);
                 resolve();
@@ -88,36 +88,60 @@ export class PhotoFrame {
         });
     }
 
-    async setCustomDevice(device: Device): Promise<string> {
+    async asyncGetStringDescriptor(index: number): Promise<string>  {
+        return new Promise<string>((resolve, reject) => {
+            if (this.device) {
+                this.device.getStringDescriptor(index, (err, buf) => {
+                    if (err) {
+                        this.log.show(`getStringDescriptor(): ${err}`, LogLevels.TRACE);
+                        reject(err);
+                    }
+                    else {
+                        resolve(buf?.toString());
+                    }
+                });
+            }
+        });
+    }
+
+    async setCustomDevice(device: Device): Promise<LibUSBException> {
         return await this.asyncControlTransfer(device, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_STANDARD | LIBUSB_RECIPIENT_DEVICE, 0x06, 0xfe, 0xfe, Buffer.alloc(254));
     }
 
-    async open(): Promise<any> {
+    async open() {
         if (this.device === undefined) {
             if (this.device = findByIds(this.customDevice.vid, this.customDevice.pid)) {
-                this.device.open();
-                this.log.show(`found customDevice`, LogLevels.DEBUG);
+                this.log.show(`customDevice ${this.device.deviceDescriptor.idVendor.toString(16)}:${this.device.deviceDescriptor.idProduct.toString(16)}`, LogLevels.DEBUG);
+                try {
+                    this.device.open();
+                    const iProduct = await this.asyncGetStringDescriptor(this.device.deviceDescriptor.iProduct);
+                    this.log.show(`found ${iProduct}`, LogLevels.INFO);
+
+                } catch (err) {
+                    this.log.show(`error opening device ${err.errno} ${err.message} `, LogLevels.ERROR);
+                    return err.errno;
+                }
             }
             else if (this.device = findByIds(this.storageDevice.vid, this.storageDevice.pid)) {
-                this.device.open();
                 this.log.show(`found storageDevice, setting to customDevice...`, LogLevels.DEBUG);
-                let res = await this.setCustomDevice(this.device);
-                if (res) {
-                    this.log.show(`done`, LogLevels.DEBUG);
+                try {
+                    this.device.open();
+                    await this.setCustomDevice(this.device);
+                } catch (err) {
+                    this.log.show(`error setting to customDevice ${err.errno} ${err.message} `, LogLevels.ERROR);
+                    return err.errno;
                 }
-                else {
-                    this.log.show(`error switching to customDevice`, LogLevels.ERROR);
-                }
+                this.log.show(`done`, LogLevels.DEBUG);
             }
             else {
                 this.log.show(`No device found.`, LogLevels.ERROR);
-                return Promise.reject();
+                return -100;
             }
         }
         else {
             this.log.show(`Device already open.`, LogLevels.INFO);
         }
-        return Promise.resolve();
+        return 0;
     }
 
     close() {
@@ -132,7 +156,7 @@ export class PhotoFrame {
             const interfaceHandle = this.device.interface(interfaceId);
             let endpointHandle = interfaceHandle.endpoint(endpointId);
 
-            this.log.show(`direction=${endpointHandle.direction} transferType=${endpointHandle.transferType}`, LogLevels.DEBUG);
+            this.log.show(`direction = ${endpointHandle.direction} transferType = ${endpointHandle.transferType} `, LogLevels.DEBUG);
             if (endpointHandle instanceof OutEndpoint) {
                 interfaceHandle.claim();
                 this.log.show(`Try sending data...`, LogLevels.TRACE);
@@ -147,7 +171,7 @@ export class PhotoFrame {
                 }
             }
             else {
-                this.log.show(`expected OutEndpoint but direction=${endpointHandle.direction} for endpoint ${endpointId}`, LogLevels.ERROR);
+                this.log.show(`expected OutEndpoint but direction = ${endpointHandle.direction} for endpoint ${endpointId}`, LogLevels.ERROR);
             }
         }
     }
@@ -165,11 +189,11 @@ export class PhotoFrame {
         let data = Buffer.concat([header, image]);
         let padding = 16384 - (data.length % 16384);
         data = Buffer.concat([data, Buffer.alloc(padding)]);
-        console.log(`sending ${data.length} bytes. header=${this.log.toHexString(header)}. image size=${image.length}`);
+        console.log(`Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `);
         try {
             await this.sendData(data, 0, 2);
         } catch (error) {
-            this.log.show(`${error}`, LogLevels.ERROR);
+            this.log.show(`${error} `, LogLevels.ERROR);
         }
     }
 }
