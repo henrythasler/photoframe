@@ -47,14 +47,12 @@ export class PhotoFrame {
     protected device: Device | undefined = undefined;
     protected log: Log;
 
-    protected storageDevice = {
-        vid: 0x04e8,
-        pid: 0x200c
-    }
-
-    protected customDevice = {
-        vid: 0x04e8,
-        pid: 0x200d
+    protected properties = {
+        vendorId: 0x04e8,
+        productIdStorage: 0x200c,
+        productIdCustom: 0x200d,
+        width: 800,
+        height: 600
     }
 
     constructor(logLevel: number = LogLevels.TRACE) {
@@ -88,7 +86,7 @@ export class PhotoFrame {
         });
     }
 
-    async asyncGetStringDescriptor(index: number): Promise<string>  {
+    async asyncGetStringDescriptor(index: number): Promise<string> {
         return new Promise<string>((resolve, reject) => {
             if (this.device) {
                 this.device.getStringDescriptor(index, (err, buf) => {
@@ -110,7 +108,7 @@ export class PhotoFrame {
 
     async open() {
         if (this.device === undefined) {
-            if (this.device = findByIds(this.customDevice.vid, this.customDevice.pid)) {
+            if (this.device = findByIds(this.properties.vendorId, this.properties.productIdCustom)) {
                 this.log.show(`customDevice ${this.device.deviceDescriptor.idVendor.toString(16)}:${this.device.deviceDescriptor.idProduct.toString(16)}`, LogLevels.DEBUG);
                 try {
                     this.device.open();
@@ -122,7 +120,7 @@ export class PhotoFrame {
                     return err.errno;
                 }
             }
-            else if (this.device = findByIds(this.storageDevice.vid, this.storageDevice.pid)) {
+            else if (this.device = findByIds(this.properties.vendorId, this.properties.productIdStorage)) {
                 this.log.show(`found storageDevice, setting to customDevice...`, LogLevels.DEBUG);
                 try {
                     this.device.open();
@@ -156,7 +154,7 @@ export class PhotoFrame {
             const interfaceHandle = this.device.interface(interfaceId);
             let endpointHandle = interfaceHandle.endpoint(endpointId);
 
-            this.log.show(`direction = ${endpointHandle.direction} transferType = ${endpointHandle.transferType} `, LogLevels.DEBUG);
+            this.log.show(`direction=${endpointHandle.direction} transferType=${endpointHandle.transferType} `, LogLevels.TRACE);
             if (endpointHandle instanceof OutEndpoint) {
                 interfaceHandle.claim();
                 this.log.show(`Try sending data...`, LogLevels.TRACE);
@@ -171,29 +169,38 @@ export class PhotoFrame {
                 }
             }
             else {
-                this.log.show(`expected OutEndpoint but direction = ${endpointHandle.direction} for endpoint ${endpointId}`, LogLevels.ERROR);
+                this.log.show(`expected OutEndpoint but direction=${endpointHandle.direction} for endpoint ${endpointId}`, LogLevels.ERROR);
             }
         }
     }
 
+    imagePreprocessing(image: sharp.Sharp) {
+        return image.resize(
+            this.properties.width, 
+            this.properties.height,
+            {
+                fit: sharp.fit.contain,
+                kernel: sharp.kernel.cubic
+            }
+            );
+    }
+
     async sendFile(filename: string) {
-        let header = Buffer.from([0xa5, 0x5a, 0x18, 0x04, 0, 0, 0, 0, 0x48, 0x00, 0x00, 0x00])
-        let image = await sharp(filename, { sequentialRead: true })
-            .modulate({
-                hue: Math.floor(Math.random() * 360)
-            })
-            .blur(Math.random() * 10 + 0.3)
-            .jpeg({ quality: 90 })
-            .toBuffer();
-        header.writeInt32LE(image.length, 4);
-        let data = Buffer.concat([header, image]);
-        let padding = 16384 - (data.length % 16384);
-        data = Buffer.concat([data, Buffer.alloc(padding)]);
-        console.log(`Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `);
+        const header = Buffer.from([0xa5, 0x5a, 0x18, 0x04, 0, 0, 0, 0, 0x48, 0x00, 0x00, 0x00])
         try {
-            await this.sendData(data, 0, 2);
-        } catch (error) {
-            this.log.show(`${error} `, LogLevels.ERROR);
+            const originalImage = await sharp(filename, { sequentialRead: true });
+            const image = await this.imagePreprocessing(originalImage).jpeg({ quality: 90 }).toBuffer();
+            header.writeInt32LE(image.length, 4);
+            let data = Buffer.concat([header, image]);
+            const padding = 16384 - (data.length % 16384);
+            data = Buffer.concat([data, Buffer.alloc(padding)]);
+            this.log.show(`Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `, LogLevels.INFO);
+            if (await this.sendData(data, 0, 2)) {
+                return true;
+            }
+            return false;
+        } catch (err) {
+            this.log.show(`sendFile: ${err.message}`, LogLevels.ERROR);
         }
     }
 }
