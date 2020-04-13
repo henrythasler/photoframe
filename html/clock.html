@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<style>
+html, body{
+    height: 100%;
+}
+
+body {
+    background-color: black;
+    padding: 0;
+    margin: 0;
+}
+
+@font-face {
+  font-family: 'OpenSans-Light';
+  src: url('fonts/OpenSans-Light.ttf')  format('truetype');
+}
+
+.content {
+  position: relative;
+  height: 100%;
+}
+
+.clock {
+  font-family: 'OpenSans-Light', Fallback, sans-serif;
+  font-size: 200px;
+  color: #ddd;
+  
+  width: 600px;
+  height: 200px;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  margin: -150px 0 0 -250px;  
+}
+
+.temp_out{
+  font-family: OpenSans-Light;
+  font-size: 100px;
+  color: #eee;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.temp_in{
+  font-family: 'OpenSans-Light', Fallback, sans-serif;
+  font-size: 100px;
+  color: #eee;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+</style>
+
+</head>
+<body>
+  <div class="wrapper">
+    <div class="clock" id="clock">0,0&#176;C</div>
+    <div class="temp_out" id="temp_out">0,0&#176;C</div>
+    <div class="temp_in" id="temp_in">0,0&#176;C</div>
+    
+  </div>  
+
+<script>
+function getUrlParameters(parameter, staticURL, decode){
+   /*
+    Function: getUrlParameters
+    Description: Get the value of URL parameters either from 
+                 current URL or static URL
+    Author: Tirumal
+    URL: www.code-tricks.com
+   */
+   var currLocation = (staticURL.length)? staticURL : window.location.search,
+       parArr = currLocation.split("?")[1].split("&"),
+       returnBool = true;
+   
+   for(var i = 0; i < parArr.length; i++){
+        parr = parArr[i].split("=");
+        if(parr[0] == parameter){
+            return (decode) ? decodeURIComponent(parr[1]) : parr[1];
+            returnBool = true;
+        }else{
+            returnBool = false;            
+        }
+   }
+   
+   if(!returnBool) return false;  
+}
+var temp_in = getUrlParameters("temp_in", "", true);
+if (temp_in.search("-273.0") >=0 ) temp_in='-';
+
+var temp_out = getUrlParameters("temp_out", "", true);
+if (temp_out.search("-273.0") >=0 ) temp_out='-';
+
+document.getElementById("clock").innerHTML = getUrlParameters("hour", "", true)+':'+getUrlParameters("minute", "", true);
+document.getElementById("temp_in").innerHTML = temp_in + ' &#176;C';
+document.getElementById("temp_out").innerHTML = temp_out + ' &#176;C';
+</script>
+
+</body>
+</html>

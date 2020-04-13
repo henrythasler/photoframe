@@ -185,7 +185,7 @@ export class PhotoFrame {
             );
     }
 
-    async sendFile(filename: string) {
+    async displayFile(filename: string) {
         const header = Buffer.from([0xa5, 0x5a, 0x18, 0x04, 0, 0, 0, 0, 0x48, 0x00, 0x00, 0x00])
         try {
             const originalImage = await sharp(filename, { sequentialRead: true });
