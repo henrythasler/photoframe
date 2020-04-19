@@ -34,7 +34,7 @@ export class PhotoFrame {
         height: 600
     }
 
-    constructor(logLevel: number = LogLevels.TRACE) {
+    constructor(logLevel: number = LogLevels.INFO) {
         this.log = new Log(logLevel);
     }
 
@@ -213,7 +213,7 @@ export class PhotoFrame {
             let data = Buffer.concat([header, image]);
             const padding = 16384 - (data.length % 16384);
             data = Buffer.concat([data, Buffer.alloc(padding)]);
-            this.log.show(`displayImage(): Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `, LogLevels.INFO);
+            this.log.show(`displayImage(): Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `, LogLevels.TRACE);
             if (await this.sendData(data, 0, 2)) {
                 return true;
             }

@@ -3,6 +3,7 @@ import { parse } from "@iarna/toml";
 
 import { PhotoFrame } from "./photoframe";
 import { ImageGenerator, Config, Screen } from "./generator";
+import { Log, LogLevels } from "./helper";
 
 let renderIndex = 0;
 let showIndex = 0;
@@ -10,71 +11,89 @@ let showIndex = 0;
 interface SlideshowItem {
     image: Buffer | null,
     renderTimestamp: number,
-    showTimestamp: number,
-    refreshSeconds: number
-    showSeconds: number
+    refreshSeconds: number,
+    showSeconds: number,
+    showRetries: number,
 }
 
-let slideshowItems: SlideshowItem[] = [];
+class Slideshow {
+    protected log: Log;
+    protected config: Config;
+    protected slideshowItems: SlideshowItem[] = [];
+    protected frame: PhotoFrame;
+    protected generator: ImageGenerator;
 
-const frame = new PhotoFrame();
+    constructor(config: Config, logLevel: number = LogLevels.INFO) {
+        this.log = new Log(logLevel);
+        this.config = config;
+        this.frame = new PhotoFrame(logLevel);
+        this.generator = new ImageGenerator(this.config, logLevel);
 
-async function render() {
-    if (frame.screenAvailable()) {
-        let item = slideshowItems[renderIndex];
+        config.screen.map((item) => {
+            this.slideshowItems.push({
+                image: null,
+                renderTimestamp: 0,
+                refreshSeconds: item.refreshSeconds ? item.refreshSeconds : 600,
+                showSeconds: item.showSeconds ? item.showSeconds : 10,
+                showRetries: 3
+            })
+        })
+    }
 
-        if((item.renderTimestamp + item.refreshSeconds*1000) < Date.now()) {
-            item.image = await generator.renderScreen(renderIndex);
-            item.renderTimestamp = Date.now();
+    async render() {
+        if (this.frame.screenAvailable()) {
+            let item = this.slideshowItems[renderIndex];
+
+            if ((item.renderTimestamp + item.refreshSeconds * 1000) < Date.now()) {
+                item.image = await this.generator.renderScreen(renderIndex);
+                item.renderTimestamp = Date.now();
+            }
+            else {
+                // console.log(`idling...`)
+            }
+            renderIndex = (renderIndex + 1) % this.slideshowItems.length;
         }
         else {
-            // console.log(`idling...`)
+            renderIndex = 0;
         }
-        // if (images[i].image) {
-        //     await frame.displayImage(images[i].image);
-        // }
-        renderIndex = (renderIndex + 1) % slideshowItems.length;
+        setTimeout(() => this.render(), 1000);
     }
-    else {
-        renderIndex = 0;
-        // console.log(`sleeping...`)
-    }
-    setTimeout(render, 1000);
-}
 
-async function show() {
-    let item = slideshowItems[showIndex];
-    if (frame.screenAvailable()) {
+    async show() {
+        let timeout = 1000;
+        if (this.frame.screenAvailable()) {
+            let item = this.slideshowItems[showIndex];
+            if (item && item.image) {
+                await this.frame.displayImage(item.image);
+                timeout = item.showSeconds * 1000;
+                showIndex = (showIndex + 1) % this.slideshowItems.length;
+            }
+            else {
+                item.showRetries = item.showRetries - 1;
+                if (item.showRetries === 0) {
+                    item.showRetries = 3;
+                    showIndex = (showIndex + 1) % this.slideshowItems.length;
+                }
+            }
 
-        if (item.image) {
-            await frame.displayImage(item.image);
         }
+        else {
+            showIndex = 0;
+            timeout = 5000;
+        }
+        console.log(`sleep ${timeout}ms`)
+        setTimeout(() => this.show(), timeout);
+    }
 
-        showIndex = (showIndex + 1) % slideshowItems.length;
+    start() {
+        this.frame.checkDevices();
+        this.frame.registerCallbacks();
+        setTimeout(() => this.render(), 100);
+        setTimeout(() => this.show(), 3000);
     }
-    else {
-        showIndex = 0;
-        // console.log(`sleeping...`)
-    }
-    setTimeout(show, 5000);
+
 }
-
 
 const config = parse(readFileSync("config/test.toml", "utf8")) as unknown as Config;
-
-config.screen.map((item) => {
-    slideshowItems.push({
-        image: null,
-        renderTimestamp: 0,
-        refreshSeconds: item.refreshSeconds?item.refreshSeconds:600,
-        showTimestamp: 0,
-        showSeconds: item.showSeconds?item.showSeconds:10,
-    })
-})
-
-const generator = new ImageGenerator(config);
-
-frame.checkDevices();
-frame.registerCallbacks();
-setTimeout(render, 1000);
-setTimeout(show, 2000);
+const slideshow = new Slideshow(config, LogLevels.INFO);
+slideshow.start();

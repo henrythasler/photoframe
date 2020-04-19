@@ -19,6 +19,7 @@ export interface Screen {
     showSeconds?: number
     url?: string
     location?: string
+    domElement?: string
 }
 
 export interface Config {
@@ -32,11 +33,9 @@ export class ImageGenerator {
     protected log: Log;
     protected config: Config;
 
-    constructor(config: Config, logLevel: number = LogLevels.TRACE) {
+    constructor(config: Config, logLevel: number = LogLevels.INFO) {
         this.log = new Log(logLevel);
         this.config = config;
-        // parse(readFileSync(configFile, "utf8")) as unknown as Config;
-        // this.log.show(`configFile: ${JSON.stringify(this.config)}`, LogLevels.TRACE);
     }
 
 
@@ -53,7 +52,7 @@ export class ImageGenerator {
             .replace(/{cwd}/g, `${process.cwd()}`)
     }
 
-    async renderHtml(url: URL): Promise<sharp.Sharp | null> {
+    async renderHtml(url: URL, domElement?:string): Promise<sharp.Sharp | null> {
         let image: sharp.Sharp | null = null;
         const browser = await puppeteer.launch({
             defaultViewport: {
@@ -71,7 +70,21 @@ export class ImageGenerator {
 
         this.log.show(`renderHtml(): ${expandedUrl}`, LogLevels.TRACE);
         await page.goto(expandedUrl);
-        image = sharp(await page.screenshot());
+
+        if(domElement) {
+            await page.waitForSelector(domElement);          // wait for the selector to load
+            const element = await page.$(domElement);        // declare a variable with an ElementHandle
+            if(element) {
+                image = sharp(await element.screenshot()); // take screenshot element in puppeteer
+            }
+            else {
+                image = sharp(await page.screenshot());
+            }
+        }
+        else {
+            image = sharp(await page.screenshot());
+        }
+
         await page.close();
         await browser.close();
         return image;
@@ -84,10 +97,12 @@ export class ImageGenerator {
             case "file:":
                 image = sharp(this.templateEngine(uri.pathname), { sequentialRead: true });
                 break;
+
             case "http:":
             case "https:":
                 const response = await fetch(this.templateEngine(uri.href));
                 image = sharp(await response.buffer());
+                break;
 
             default:
                 this.log.show(`getImage(): no handler for protocol '${uri.protocol}'`, LogLevels.ERROR);
@@ -124,7 +139,7 @@ export class ImageGenerator {
 
             case "html":
                 if (screen.url) {
-                    image = await this.renderHtml(new URL(screen.url));
+                    image = await this.renderHtml(new URL(screen.url), screen.domElement);
                 }
                 else {
                     this.log.show(`renderScreen(): 'screen.url' is needed for html-type.`, LogLevels.ERROR);

@@ -3,27 +3,47 @@ height = 600
 isLandscape = true
 
 [[screen]]
-type = "image"
-location = "schlegeis.jpg"
-refreshSeconds = 3600
-showSeconds = 2
-
-[[screen]]
 type = "html"
 url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in=24.1&temp_out=12.2"
 refreshSeconds = 30
+showSeconds = 5
+
+[[screen]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/peissenberg/current/720.jpg"
+refreshSeconds = 600
+showSeconds = 10
+
+[[screen]]
+type = "html"
+url = "https://www.wetteronline.de/wetterradar/mering?mode=compact"
+domElement = "#map"
+refreshSeconds = 600
+showSeconds = 10
+
+[[screen]]
+type = "html"
+url = "https://www.wetteronline.de/wetter/mering"
+domElement = "#forecast_MediumTerm"
+refreshSeconds = 3600
 showSeconds = 10
 
 [[screen]]
 type = "image"
-url = "https://blog.cyclemap.link/img/map-background-cyclemap.jpg"
-refreshSeconds = 60
-showSeconds = 1
+url = "https://www.wetteronline.de/?diagram=true&gid=10852&pid=p_city_local&timestamp=&trendchart=true"
+refreshSeconds = 3600
+showSeconds = 10
 
 [[screen]]
 type = "image"
-url = "file:/home/henry/big.png"
-refreshSeconds = 3600
+url = "https://www.foto-webcam.eu/webcam/garland/current/720.jpg"
+refreshSeconds = 600
+showSeconds = 10
+
+[[screen]]
+type = "html"
+url = "https://www.uhrzeit.org/atomuhr.php"
+refreshSeconds = 300
 showSeconds = 10
 
 [[screen]]
@@ -31,4 +51,12 @@ type = "image"
 url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
 refreshSeconds = 20
 showSeconds = 5
+
+[[screen]]
+type = "image"
+url = "https://livecam.jaegeralpe.at/jaegeralpe2.jpg"
+refreshSeconds = 600
+showSeconds = 10
+
+
 
