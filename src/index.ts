@@ -1,54 +1,80 @@
+import { readFileSync } from "fs";
+import { parse } from "@iarna/toml";
+
 import { PhotoFrame } from "./photoframe";
-import puppeteer from 'puppeteer';
+import { ImageGenerator, Config, Screen } from "./generator";
+
+let renderIndex = 0;
+let showIndex = 0;
+
+interface SlideshowItem {
+    image: Buffer | null,
+    renderTimestamp: number,
+    showTimestamp: number,
+    refreshSeconds: number
+    showSeconds: number
+}
+
+let slideshowItems: SlideshowItem[] = [];
 
 const frame = new PhotoFrame();
 
-const files = ["/home/henry/tegelberg.jpg", "/home/henry/screenshot.png", "/home/henry/schlegeis.jpg", "/home/henry/Selection_201.png"]
-let i = 0;
+async function render() {
+    if (frame.screenAvailable()) {
+        let item = slideshowItems[renderIndex];
 
-async function renderPage(url:string) {
-    const browser = await puppeteer.launch({
-        defaultViewport: {
-            width: 800,
-            height: 600,
-            isLandscape: true
-        },
-        executablePath: "chromium-browser"
-    });
-
-    let page = await browser.newPage();
-    await page.goto(url);
-    await page.screenshot({ path: './image.jpg', type: 'jpeg' });
-    await page.close();
-    await browser.close();    
-}
-
-async function main() {
-    const filename = files[(i++)%files.length];
-    console.log("\n"+filename)
-    await frame.displayFile(filename);
-    setTimeout(main, 2000);
-    // await frame.sendFile("/home/henry/screenshot.png");
-    // await frame.sendFile("/home/henry/Selection_201.png");
-}
-
-async function start() {
-    frame.open().then((res) => {
-        if (res === 0) {
-            setTimeout(main, 2000);
+        if((item.renderTimestamp + item.refreshSeconds*1000) < Date.now()) {
+            item.image = await generator.renderScreen(renderIndex);
+            item.renderTimestamp = Date.now();
         }
         else {
-            console.log(`Could not open device. Error ${res}`);
-
+            // console.log(`idling...`)
         }
-    }).catch((err) => {
-        console.log(`Error opening device. ${err}`);
-    });
+        // if (images[i].image) {
+        //     await frame.displayImage(images[i].image);
+        // }
+        renderIndex = (renderIndex + 1) % slideshowItems.length;
+    }
+    else {
+        renderIndex = 0;
+        // console.log(`sleeping...`)
+    }
+    setTimeout(render, 1000);
 }
 
-// start();
-try {
-    renderPage('file:///home/henry/photoframe/html/clock.html?hour=13&minute=37&temp_in=24.1&temp_out=12.2');    
-} catch (err) {
-    console.log(err)
+async function show() {
+    let item = slideshowItems[showIndex];
+    if (frame.screenAvailable()) {
+
+        if (item.image) {
+            await frame.displayImage(item.image);
+        }
+
+        showIndex = (showIndex + 1) % slideshowItems.length;
+    }
+    else {
+        showIndex = 0;
+        // console.log(`sleeping...`)
+    }
+    setTimeout(show, 5000);
 }
+
+
+const config = parse(readFileSync("config/test.toml", "utf8")) as unknown as Config;
+
+config.screen.map((item) => {
+    slideshowItems.push({
+        image: null,
+        renderTimestamp: 0,
+        refreshSeconds: item.refreshSeconds?item.refreshSeconds:600,
+        showTimestamp: 0,
+        showSeconds: item.showSeconds?item.showSeconds:10,
+    })
+})
+
+const generator = new ImageGenerator(config);
+
+frame.checkDevices();
+frame.registerCallbacks();
+setTimeout(render, 1000);
+setTimeout(show, 2000);

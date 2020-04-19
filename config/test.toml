@@ -1,0 +1,34 @@
+width = 800
+height = 600
+isLandscape = true
+
+[[screen]]
+type = "image"
+location = "schlegeis.jpg"
+refreshSeconds = 3600
+showSeconds = 2
+
+[[screen]]
+type = "html"
+url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in=24.1&temp_out=12.2"
+refreshSeconds = 30
+showSeconds = 10
+
+[[screen]]
+type = "image"
+url = "https://blog.cyclemap.link/img/map-background-cyclemap.jpg"
+refreshSeconds = 60
+showSeconds = 1
+
+[[screen]]
+type = "image"
+url = "file:/home/henry/big.png"
+refreshSeconds = 3600
+showSeconds = 10
+
+[[screen]]
+type = "image"
+url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
+refreshSeconds = 20
+showSeconds = 5
+
