@@ -2,84 +2,80 @@ import { readFileSync } from "fs";
 import { parse } from "@iarna/toml";
 
 import { PhotoFrame } from "./photoframe";
-import { ImageGenerator, Config, Screen } from "./generator";
+import { ImageGenerator, Settings, ScreenSource } from "./generator";
 import { Log, LogLevels } from "./helper";
 
-let renderIndex = 0;
-let showIndex = 0;
+export interface RawConfig {
+    settings?: {
+        width?: number,
+        height?: number,
+        isLandscape?: boolean,
+    }
+    screens?: ScreenSource[]
+    backgrounds?: ScreenSource[]
+}
 
-interface SlideshowItem {
-    image: Buffer | null,
-    renderTimestamp: number,
-    refreshSeconds: number,
-    showSeconds: number,
-    showRetries: number,
+export interface Config {
+    settings: Settings
+    screens: ScreenSource[]
+    backgrounds: ScreenSource[]
 }
 
 class Slideshow {
     protected log: Log;
-    protected config: Config;
-    protected slideshowItems: SlideshowItem[] = [];
     protected frame: PhotoFrame;
-    protected generator: ImageGenerator;
+    protected backgrounds: ImageGenerator;
+    protected screens: ImageGenerator;
+    protected showIndex = 0;
 
     constructor(config: Config, logLevel: number = LogLevels.INFO) {
         this.log = new Log(logLevel);
-        this.config = config;
         this.frame = new PhotoFrame(logLevel);
-        this.generator = new ImageGenerator(this.config, logLevel);
-
-        config.screen.map((item) => {
-            this.slideshowItems.push({
-                image: null,
-                renderTimestamp: 0,
-                refreshSeconds: item.refreshSeconds ? item.refreshSeconds : 600,
-                showSeconds: item.showSeconds ? item.showSeconds : 10,
-                showRetries: 3
-            })
-        })
+        this.screens = new ImageGenerator(config.settings, config.screens, logLevel)
+        this.backgrounds = new ImageGenerator(config.settings, config.backgrounds, logLevel);
     }
 
     async render() {
         if (this.frame.screenAvailable()) {
-            let item = this.slideshowItems[renderIndex];
-
-            if ((item.renderTimestamp + item.refreshSeconds * 1000) < Date.now()) {
-                item.image = await this.generator.renderScreen(renderIndex);
-                item.renderTimestamp = Date.now();
-            }
-            else {
-                // console.log(`idling...`)
-            }
-            renderIndex = (renderIndex + 1) % this.slideshowItems.length;
-        }
-        else {
-            renderIndex = 0;
+            await this.screens.renderNext();
+            await this.backgrounds.renderNext();
         }
         setTimeout(() => this.render(), 1000);
     }
 
     async show() {
-        let timeout = 1000;
+        let timeout = 5000;
         if (this.frame.screenAvailable()) {
-            let item = this.slideshowItems[showIndex];
-            if (item && item.image) {
-                await this.frame.displayImage(item.image);
-                timeout = item.showSeconds * 1000;
-                showIndex = (showIndex + 1) % this.slideshowItems.length;
+            const screen = this.screens.getItem(this.showIndex);
+            if (screen && screen.image) {
+                let image = screen.image;
+                if (screen.source.background) {
+                    this.log.show(`adding background ${screen.source.background}`, LogLevels.TRACE);
+                    let background = this.backgrounds.getItemByName(screen.source.background);
+                    if (background && background.image) {
+                        this.log.show(`composing image`, LogLevels.TRACE);
+                        image = image.composite([{ input: await background.image.toBuffer(), blend: screen.source.blend ? screen.source.blend : "lighten" }])
+                    }
+                }
+                else {
+                    this.log.show(`no background`, LogLevels.TRACE);
+                }
+                await this.frame.displayImage(await image.jpeg({ quality: 90 }).toBuffer());
+                timeout = screen.source.showSeconds ? screen.source.showSeconds * 1000 : 1000;
+                this.showIndex = (this.showIndex + 1) % this.screens.getLength();
             }
             else {
-                item.showRetries = item.showRetries - 1;
-                if (item.showRetries === 0) {
-                    item.showRetries = 3;
-                    showIndex = (showIndex + 1) % this.slideshowItems.length;
+                screen.showRetries = screen.showRetries - 1;
+                if (screen.showRetries === 0) {
+                    screen.showRetries = 3;
+                    this.showIndex = (this.showIndex + 1) % this.screens.getLength();
                 }
+                timeout = 1000;
             }
 
         }
         else {
-            showIndex = 0;
-            timeout = 5000;
+            this.showIndex = 0;
         }
         console.log(`sleep ${timeout}ms`)
         setTimeout(() => this.show(), timeout);
@@ -94,6 +90,22 @@ class Slideshow {
 
 }
 
-const config = parse(readFileSync("config/test.toml", "utf8")) as unknown as Config;
-const slideshow = new Slideshow(config, LogLevels.INFO);
+const rawConfig = parse(readFileSync("config/test.toml", "utf8")) as unknown as RawConfig;
+
+// do some basic input checking
+const config: Config = {
+    settings: rawConfig.settings ? {
+        width: rawConfig.settings.width ? rawConfig.settings.width : 800,
+        height: rawConfig.settings.height ? rawConfig.settings.height : 600,
+        isLandscape: rawConfig.settings.isLandscape ? rawConfig.settings.isLandscape : true
+    } : {
+            width: 800,
+            height: 600,
+            isLandscape: true
+        },
+    backgrounds: rawConfig.backgrounds ? rawConfig.backgrounds : [],    // FIXME: each item needs to be sanitized as well
+    screens: rawConfig.screens ? rawConfig.screens : [],    // FIXME: each item needs to be sanitized as well
+}
+
+const slideshow = new Slideshow(config, LogLevels.TRACE);
 slideshow.start();

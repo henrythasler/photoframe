@@ -1,58 +1,79 @@
+[settings]
 width = 800
 height = 600
 isLandscape = true
 
-[[screen]]
+[[backgrounds]]
+name = "clock"
+type = "html"
+url = "file://{cwd}/html/background.html?top_left={HH}:{mm}&top_right=x&bottom_left=24.1&bottom_right=12.2"
+refreshSeconds = 30
+
+[[backgrounds]]
+name = "smiling"
+type = "html"
+url = "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/whatsapp/238/smiling-face-with-smiling-eyes-and-three-hearts_1f970.png"
+refreshSeconds = 3600
+
+[[screens]]
 type = "html"
 url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in=24.1&temp_out=12.2"
 refreshSeconds = 30
-showSeconds = 5
-
-[[screen]]
-type = "image"
-url = "https://www.foto-webcam.eu/webcam/peissenberg/current/720.jpg"
-refreshSeconds = 600
 showSeconds = 10
 
-[[screen]]
+[[screens]]
 type = "html"
 url = "https://www.wetteronline.de/wetterradar/mering?mode=compact"
 domElement = "#map"
+domTimeout = 2000
 refreshSeconds = 600
 showSeconds = 10
 
-[[screen]]
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/wank/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "add"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/schlegeis/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "lighten"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/peissenberg/current/720.jpg"
+refreshSeconds = 600
+background = "smiling"
+blend = "lighten"
+showSeconds = 10
+
+
+[[screens]]
 type = "html"
 url = "https://www.wetteronline.de/wetter/mering"
 domElement = "#forecast_MediumTerm"
 refreshSeconds = 3600
 showSeconds = 10
 
-[[screen]]
+[[screens]]
 type = "image"
 url = "https://www.wetteronline.de/?diagram=true&gid=10852&pid=p_city_local&timestamp=&trendchart=true"
 refreshSeconds = 3600
 showSeconds = 10
 
-[[screen]]
-type = "image"
-url = "https://www.foto-webcam.eu/webcam/garland/current/720.jpg"
-refreshSeconds = 600
-showSeconds = 10
-
-[[screen]]
-type = "html"
-url = "https://www.uhrzeit.org/atomuhr.php"
-refreshSeconds = 300
-showSeconds = 10
-
-[[screen]]
+[[screens]]
 type = "image"
 url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
 refreshSeconds = 20
 showSeconds = 5
 
-[[screen]]
+[[screens]]
 type = "image"
 url = "https://livecam.jaegeralpe.at/jaegeralpe2.jpg"
 refreshSeconds = 600

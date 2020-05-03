@@ -1,0 +1,12 @@
+[Unit]
+Description=photoframe
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/henry/photoframe
+ExecStart=node dist/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
