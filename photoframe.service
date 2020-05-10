@@ -1,3 +1,4 @@
+# copy to /etc/systemd/system/
 [Unit]
 Description=photoframe
 After=network.target

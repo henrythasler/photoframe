@@ -1,4 +1,4 @@
-import sharp, {Blend} from "sharp";
+import sharp, { Blend } from "sharp";
 import puppeteer from "puppeteer";
 import fetch, {
     Blob,
@@ -10,8 +10,10 @@ import fetch, {
 } from "node-fetch";
 
 import { LogLevels, Log } from "./helper";
+import { DataProvider } from "./data";
 
 export type ScreenContentType = "image" | "html";
+
 
 export interface ScreenSource {
     name?: string
@@ -19,7 +21,6 @@ export interface ScreenSource {
     refreshSeconds: number
     showSeconds: number
     url?: string
-    location?: string
     domElement?: string
     domTimeout?: number
     background?: string
@@ -44,18 +45,20 @@ export class ImageGenerator {
     protected settings: Settings;
     protected screens: Screen[] = [];
     protected index = 0;
+    protected data: DataProvider;
 
-    constructor(settings: Settings, source: ScreenSource[], logLevel: number = LogLevels.INFO) {
+    constructor(settings: Settings, source: ScreenSource[], data: DataProvider, logLevel: number = LogLevels.INFO) {
         this.log = new Log(logLevel);
         this.settings = settings;
-        source.map( (item) => {
+        source.map((item) => {
             this.screens.push({
                 source: item,
                 image: null,
                 renderTimestamp: 0,
                 showRetries: 3
-            }) 
-        } );
+            })
+        });
+        this.data = data;
     }
 
 
@@ -63,20 +66,58 @@ export class ImageGenerator {
         const date = new Date();
 
         // https://momentjs.com/docs/#/parsing/string-format/
-        return input
+        let res = input
+            // Hour
             .replace(/{HH}/g, `${date.getHours().toString().padStart(2, '0')}`)
             .replace(/{H}/g, `${date.getHours().toString()}`)
+            // Minute
             .replace(/{mm}/g, `${date.getMinutes().toString().padStart(2, '0')}`)
             .replace(/{m}/g, `${date.getMinutes().toString()}`)
 
-            .replace(/{cwd}/g, `${process.cwd()}`)
+            // Last 
+            .replace(/{LAST_FULL_TEN_MINUTES}/g, `${(Math.floor(date.getMinutes() / 10) * 10).toString().padStart(2, '0')}`)
+
+            // Year
+            .replace(/{YYYY}/g, `${date.getFullYear().toString().padStart(2, '0')}`)
+
+            // Month
+            .replace(/{MM}/g, `${(date.getMonth() + 1).toString().padStart(2, '0')}`)
+            .replace(/{M}/g, `${(date.getMonth() + 1).toString()}`)
+            // Day
+            .replace(/{DD}/g, `${date.getDate().toString().padStart(2, '0')}`)
+            .replace(/{D}/g, `${date.getDate().toString()}`)
+
+            // Current folder
+            .replace(/{cwd}/g, `${process.cwd()}`);
+
+
+        let dataExpressions = res.match(/{data:.+?}/g);
+
+        if (dataExpressions) {
+            dataExpressions.forEach(expression => {
+                this.log.show(`templateEngine(): expression=${expression}`, LogLevels.TRACE);
+                const name = expression.match(/:([^)]+)\./);
+                const property = expression.match(/\.([^)]+)}/);
+
+                if (name && property) {
+                    this.log.show(`templateEngine(): name=${name[1]} property=${property[1]}`, LogLevels.TRACE);
+                    res = res.replace(expression, this.data.get(name[1], property[1]));
+                }
+                else if (name) {
+                    this.log.show(`templateEngine(): name=${name[1]}`, LogLevels.TRACE);
+                    res = res.replace(expression, this.data.get(name[1]));
+                }
+            });
+        }
+
+        return res;
     }
 
     async timeout(ms: number) {
         return new Promise(resolve => setTimeout(resolve, ms));
-      }    
+    }
 
-    async renderHtml(url: URL, domElement?: string, domTimeout?:number): Promise<sharp.Sharp | null> {
+    async renderHtml(url: URL, domElement?: string, domTimeout?: number): Promise<sharp.Sharp | null> {
         let image: sharp.Sharp | null = null;
         const browser = await puppeteer.launch({
             defaultViewport: {
@@ -90,12 +131,10 @@ export class ImageGenerator {
 
         let page = await browser.newPage();
 
-        let expandedUrl = this.templateEngine(url.href)
+        this.log.show(`renderHtml(): ${url.href}`, LogLevels.TRACE);
+        await page.goto(url.href);
 
-        this.log.show(`renderHtml(): ${expandedUrl}`, LogLevels.TRACE);
-        await page.goto(expandedUrl);
-
-        if(domTimeout) {
+        if (domTimeout) {
             await this.timeout(domTimeout);
         }
 
@@ -123,13 +162,18 @@ export class ImageGenerator {
         this.log.show(`getImage(): ${uri.protocol} ${uri.pathname}`, LogLevels.TRACE);
         switch (uri.protocol) {
             case "file:":
-                image = sharp(this.templateEngine(uri.pathname), { sequentialRead: true });
+                image = sharp(uri.pathname, { sequentialRead: true });
                 break;
 
             case "http:":
             case "https:":
-                const response = await fetch(this.templateEngine(uri.href));
-                image = sharp(await response.buffer());
+                try {
+                    const response = await fetch(uri.href);
+                    image = sharp(await response.buffer());
+                } catch (error) {
+                    this.log.show(`getImage(): '${error}'`, LogLevels.ERROR);
+                    image = null;
+                }
                 break;
 
             default:
@@ -139,32 +183,28 @@ export class ImageGenerator {
         return image;
     }
 
-    async getFileImage(uri: string): Promise<sharp.Sharp | null> {
-        let image: sharp.Sharp | null = null;
-
-        this.log.show(`getImage(): ${uri}`, LogLevels.TRACE);
-        image = sharp(uri, { sequentialRead: true });
-
-        return image;
-    }
-
     async renderNext(): Promise<void> {
-        try {
-            const screen = this.screens[this.index];
-            if ((screen.renderTimestamp + screen.source.refreshSeconds * 1000) < Date.now()) {
-                screen.image = await this.renderScreen(this.index);
-                screen.renderTimestamp = Date.now();
+        if(this.screens.length) {
+            try {
+                const screen = this.screens[this.index];
+                if ((screen.renderTimestamp + screen.source.refreshSeconds * 1000) < Date.now()) {
+                    screen.image = await this.renderScreen(this.index);
+                    screen.renderTimestamp = Date.now();
+                }
+                else {
+                    this.log.show(`renderNext(): no update needed for ${this.index} (${screen.source.url ? screen.source.url : screen.source.type})`, LogLevels.TRACE);
+                }
+                this.index = (this.index + 1) % this.screens.length;
+            } catch (error) {
+                this.log.show(`renderNext(): ${error}`, LogLevels.ERROR);
             }
-            else {
-                this.log.show(`renderNext(): no update needed for ${this.index} (${screen.source.url?screen.source.url:screen.source.type})`, LogLevels.TRACE);
-            }
-            this.index = (this.index + 1) % this.screens.length;
-        } catch (error) {
-            this.log.show(`renderNext(): ${error}`, LogLevels.ERROR);                        
+        }
+        else {
+            this.log.show(`renderNext(): no screens defined`, LogLevels.INFO);
         }
     }
 
-    getLength():number {
+    getLength(): number {
         return this.screens.length;
     }
 
@@ -185,16 +225,13 @@ export class ImageGenerator {
         switch (screen.source.type) {
             case "image":
                 if (screen.source.url) {
-                    image = await this.getUrlImage(new URL(screen.source.url));
-                }
-                else if (screen.source.location) {
-                    image = await this.getFileImage(screen.source.location);
+                    image = await this.getUrlImage(new URL(this.templateEngine(screen.source.url)));
                 }
                 break;
 
             case "html":
                 if (screen.source.url) {
-                    image = await this.renderHtml(new URL(screen.source.url), screen.source.domElement, screen.source.domTimeout);
+                    image = await this.renderHtml(new URL(this.templateEngine(screen.source.url)), screen.source.domElement, screen.source.domTimeout);
                 }
                 else {
                     this.log.show(`renderScreen(): 'screen.url' is needed for html-type.`, LogLevels.ERROR);

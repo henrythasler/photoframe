@@ -107,14 +107,27 @@ export class PhotoFrame {
         if (device = findByIds(this.properties.vendorId, this.properties.productIdCustom)) {
             this.log.show(`checkDevices(): customDevice available (${device.deviceDescriptor.idVendor.toString(16)}:${device.deviceDescriptor.idProduct.toString(16)})`, LogLevels.INFO);
             this.attachedDevice = "custom";
-            this.deviceHandle = this.open(device);
+
+            if (!this.deviceHandle) {
+                this.deviceHandle = this.open(device);
+            }
+            else {
+                this.log.show(`checkDevices(): device already open`, LogLevels.INFO);
+            }
+
         }
         else if (device = findByIds(this.properties.vendorId, this.properties.productIdStorage)) {
             this.log.show(`checkDevices(): storageDevice available (${device.deviceDescriptor.idVendor.toString(16)}:${device.deviceDescriptor.idProduct.toString(16)})`, LogLevels.INFO);
             this.attachedDevice = "storage";
             // await new Promise(resolve => setTimeout(resolve, 1000));
             try {
-                this.deviceHandle = this.open(device);
+                if (!this.deviceHandle) {
+                    this.deviceHandle = this.open(device);
+                }
+                else {
+                    this.log.show(`checkDevices(): device already open`, LogLevels.INFO);
+                }
+    
                 if(this.deviceHandle) {
                     await this.setCustomDevice(this.deviceHandle);
                 }
@@ -126,7 +139,10 @@ export class PhotoFrame {
         else {
             this.log.show(`checkDevices(): No device found.`, LogLevels.INFO);
             this.attachedDevice = "none";
-            this.deviceHandle = undefined;
+            if (this.deviceHandle) {
+                this.deviceHandle.close()
+                this.deviceHandle = undefined;
+            }
         }
         return this.attachedDevice;
     }

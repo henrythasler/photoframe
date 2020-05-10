@@ -23,6 +23,7 @@
   "homepage": "https://github.com/henrythasler/photoframe#readme",
   "dependencies": {
     "@iarna/toml": "^2.2.3",
+    "async-mqtt": "^2.5.0",
     "node-fetch": "^2.6.0",
     "puppeteer": "^2.1.1",
     "sharp": "^0.25.2",

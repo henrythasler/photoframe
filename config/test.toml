@@ -6,7 +6,7 @@ isLandscape = true
 [[backgrounds]]
 name = "clock"
 type = "html"
-url = "file://{cwd}/html/background.html?top_left={HH}:{mm}&top_right=x&bottom_left=24.1&bottom_right=12.2"
+url = "file://{cwd}/html/background.html?top_left={HH}:{mm}&top_right=x&bottom_left={data:temp_in.value}%20°C&bottom_right={data:temp_out.value}%20°C"
 refreshSeconds = 30
 
 [[backgrounds]]
@@ -15,10 +15,42 @@ type = "html"
 url = "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/whatsapp/238/smiling-face-with-smiling-eyes-and-three-hearts_1f970.png"
 refreshSeconds = 3600
 
+[[data]]
+name = "temp_out"
+type = "mqtt"
+url = "mqtt://omv4.fritz.box:1883/home/out/temp"
+
+[[data]]
+name = "temp_in"
+type = "mqtt"
+url = "mqtt://omv4.fritz.box:1883/home/in/temp"
+
 [[screens]]
 type = "html"
-url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in=24.1&temp_out=12.2"
+url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in={data:temp_in.value}&temp_out={data:temp_out.value}"
 refreshSeconds = 30
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "file://{cwd}/../pyLogger/out.png"
+refreshSeconds = 600
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.addicted-sports.com/fileadmin/webcam/lechstaustufe/{YYYY}/{MM}/{DD}/{HH}{LAST_FULL_TEN_MINUTES}_hd.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "add"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.addicted-sports.com/fileadmin/webcam/chiemsee/{YYYY}/{MM}/{DD}/{HH}{LAST_FULL_TEN_MINUTES}_hd.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "add"
 showSeconds = 10
 
 [[screens]]
@@ -67,16 +99,17 @@ url = "https://www.wetteronline.de/?diagram=true&gid=10852&pid=p_city_local&time
 refreshSeconds = 3600
 showSeconds = 10
 
-[[screens]]
-type = "image"
-url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
-refreshSeconds = 20
-showSeconds = 5
+# [[screens]]
+# type = "image"
+# url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
+# refreshSeconds = 20
+# showSeconds = 5
 
 [[screens]]
 type = "image"
 url = "https://livecam.jaegeralpe.at/jaegeralpe2.jpg"
 refreshSeconds = 600
+background = "clock"
 showSeconds = 10
 
 
