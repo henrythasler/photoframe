@@ -3,6 +3,7 @@ width = 800
 height = 600
 isLandscape = true
 
+
 [[backgrounds]]
 name = "clock"
 type = "html"
@@ -15,6 +16,7 @@ type = "html"
 url = "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/whatsapp/238/smiling-face-with-smiling-eyes-and-three-hearts_1f970.png"
 refreshSeconds = 3600
 
+
 [[data]]
 name = "temp_out"
 type = "mqtt"
@@ -25,18 +27,38 @@ name = "temp_in"
 type = "mqtt"
 url = "mqtt://omv4.fritz.box:1883/home/in/temp"
 
+# Uhrzeit
 [[screens]]
 type = "html"
 url = "file://{cwd}/html/clock.html?hour={HH}&minute={mm}&temp_in={data:temp_in.value}&temp_out={data:temp_out.value}"
 refreshSeconds = 30
 showSeconds = 10
 
+# Temperaturchart
 [[screens]]
 type = "image"
 url = "file://{cwd}/../pyLogger/out.png"
 refreshSeconds = 600
 showSeconds = 10
 
+# Bahnhof Mering
+[[screens]]
+type = "html"
+url = "https://iris.noncd.db.de/wbt/js/index.html?typ=ab&bhf=8003982&zugtyp=&platform=4&bhfname=&style=ab&via=1&impressum=1&lang=de&SecLang=&zeilen=5&paging=&pagingdauer="
+domTimeout = 1500
+refreshSeconds = 120
+showSeconds = 10
+
+# Wetter
+[[screens]]
+type = "html"
+url = "https://www.wetteronline.de/wetterradar/mering?mode=compact"
+domElement = "#map"
+domTimeout = 2000
+refreshSeconds = 600
+showSeconds = 10
+
+# Webcams
 [[screens]]
 type = "image"
 url = "https://www.addicted-sports.com/fileadmin/webcam/lechstaustufe/{YYYY}/{MM}/{DD}/{HH}{LAST_FULL_TEN_MINUTES}_hd.jpg"
@@ -51,14 +73,6 @@ url = "https://www.addicted-sports.com/fileadmin/webcam/chiemsee/{YYYY}/{MM}/{DD
 refreshSeconds = 600
 background = "clock"
 blend = "add"
-showSeconds = 10
-
-[[screens]]
-type = "html"
-url = "https://www.wetteronline.de/wetterradar/mering?mode=compact"
-domElement = "#map"
-domTimeout = 2000
-refreshSeconds = 600
 showSeconds = 10
 
 [[screens]]
@@ -85,7 +99,14 @@ background = "smiling"
 blend = "lighten"
 showSeconds = 10
 
+[[screens]]
+type = "image"
+url = "https://livecam.jaegeralpe.at/jaegeralpe2.jpg"
+refreshSeconds = 600
+background = "clock"
+showSeconds = 10
 
+# Wetter
 [[screens]]
 type = "html"
 url = "https://www.wetteronline.de/wetter/mering"
@@ -99,18 +120,17 @@ url = "https://www.wetteronline.de/?diagram=true&gid=10852&pid=p_city_local&time
 refreshSeconds = 3600
 showSeconds = 10
 
-# [[screens]]
-# type = "image"
-# url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
-# refreshSeconds = 20
-# showSeconds = 5
-
 [[screens]]
 type = "image"
-url = "https://livecam.jaegeralpe.at/jaegeralpe2.jpg"
+url = "http://nc.wetter-rosstal.de/blitzortung/bo.php?map=3"
 refreshSeconds = 600
-background = "clock"
 showSeconds = 10
 
+# Roomba
+[[screens]]
+type = "image"
+url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
+refreshSeconds = 999999999
+showSeconds = 5
 
 

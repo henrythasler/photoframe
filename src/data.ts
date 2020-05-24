@@ -18,7 +18,7 @@ export class Connection {
     protected log: Log;
     public brokerUrl: string;
     public client: AsyncMqttClient;
-    public data: { [topic: string]: string };
+    public data: { [topic: string]: Buffer };
     public topics: { [name: string]: string };
 
     constructor(brokerUrl: string, client: AsyncMqttClient, logLevel: number = LogLevels.INFO) {
@@ -38,84 +38,91 @@ export class DataProvider {
         this.log = new Log(logLevel);
     }
 
-    async init(dataSources: DataSource[]) {
+    async add(dataSources: DataSource[]) {
         for (let i = 0; i < dataSources.length; i++) {
             let element = dataSources[i];
 
-            const url = new URL(element.url);
-            const newBrokerUrl = `${url.protocol}//${url.host}`;
-            // this.log.show(`DataProvider.init(): Existing connections: ${JSON.stringify(this.connections)}`, LogLevels.TRACE);
+            switch (element.type) {
+                case "mqtt":
+                    await this.addMqtt(element);
+                    break;
 
-            const connection = this.connections.find(({ brokerUrl }) => {
-                return brokerUrl === newBrokerUrl
-            });
+                default:
+                    this.log.show(`DataProvider.add(): Unknown type '${element.type}'`, LogLevels.INFO);
+                    break;
+            }
+        }
+    }
 
-            if (connection) {
-                this.log.show(`DataProvider.init(): Broker '${connection.brokerUrl}' already known.`, LogLevels.TRACE);
+    async addMqtt(element: DataSource): Promise<void> {
+        const url = new URL(element.url);
+        const newBrokerUrl = `${url.protocol}//${url.host}`;
+
+        const connection = this.connections.find(({ brokerUrl }) => {
+            return brokerUrl === newBrokerUrl
+        });
+
+        if (connection) {
+            this.log.show(`DataProvider.init(): Broker '${connection.brokerUrl}' already known.`, LogLevels.TRACE);
+
+            const newTopic = url.pathname.substr(1);
+            // connection.data[newTopic] = "-";
+            connection.topics[element.name] = newTopic;
+
+            this.log.show(`DataProvider.init(): Subscribing to ${newTopic}...`, LogLevels.TRACE);
+            await connection.client.subscribe(connection.topics[element.name]);
+
+            connection.client.on("message", (topic, payload) => this.onMessage(topic, payload, connection));
+        }
+        else {
+            try {
+                this.log.show(`DataProvider.init(): New connection to ${newBrokerUrl}...`, LogLevels.TRACE);
+                const newClient = await connectAsync(newBrokerUrl);
+                const connection = new Connection(newBrokerUrl, newClient);
+                this.connections.push(connection);
 
                 const newTopic = url.pathname.substr(1);
-                connection.data[newTopic] = "-";
+                // connection.data[newTopic] = "-";
                 connection.topics[element.name] = newTopic;
 
                 this.log.show(`DataProvider.init(): Subscribing to ${newTopic}...`, LogLevels.TRACE);
                 await connection.client.subscribe(connection.topics[element.name]);
 
                 connection.client.on("message", (topic, payload) => this.onMessage(topic, payload, connection));
-            }
-            else {
-                try {
-                    this.log.show(`DataProvider.init(): New connection to ${newBrokerUrl}...`, LogLevels.TRACE);
-                    const newClient = await connectAsync(newBrokerUrl);
-                    const connection = new Connection(newBrokerUrl, newClient);
-                    this.connections.push(connection);
 
-                    const newTopic = url.pathname.substr(1);
-                    connection.data[newTopic] = "-";
-                    connection.topics[element.name] = newTopic;
-
-                    this.log.show(`DataProvider.init(): Subscribing to ${newTopic}...`, LogLevels.TRACE);
-                    await connection.client.subscribe(connection.topics[element.name]);
-
-                    connection.client.on("message", (topic, payload) => this.onMessage(topic, payload, connection));
-
-                } catch (error) {
-                    this.log.show(`DataProvider.init(): ${error}`, LogLevels.ERROR);
-                }
+            } catch (error) {
+                this.log.show(`DataProvider.init(): ${error}`, LogLevels.ERROR);
             }
         }
     }
 
     onMessage(topic: string, payload: Buffer, connection: Connection) {
-        this.log.show(`DataProvider.onMessage() from ${connection.brokerUrl}: ${topic}, ${payload.toString()}`, LogLevels.TRACE);
-        connection.data[topic] = payload.toString();
+        this.log.show(`DataProvider.onMessage() from ${connection.brokerUrl}: ${topic}, ${payload.toString().substr(0,32)}`, LogLevels.TRACE);
+        connection.data[topic] = payload;
     }
 
-    get(name: string, property?: string): string {
-        let res = "?";
-        // this.log.show(`DataProvider.init(): Existing connections: ${JSON.stringify(this.connections)}`, LogLevels.TRACE);
+    get(name: string, property?: string): string | Buffer {
         const connection = this.connections.find(({ topics }) => {
-            // this.log.show(`DataProvider.get(): checking ${JSON.stringify(topics)}`, LogLevels.TRACE);
             return topics[name]
         });
 
         if (connection) {
-
             if (property) {
                 const topic = connection.topics[name];
-                const json = JSON.parse(connection.data[topic]);
+                const json = JSON.parse(connection.data[topic].toString());
                 if (json) {
-                    res = json[property] ? json[property] : "!";
+                    return(json[property] ? json[property] : "!");
                 }
             }
             else {
                 const topic = connection.topics[name];
-                res = connection.data[topic];
+                return(connection.data[topic]);
             }
-            this.log.show(`DataProvider.get(): ${name}, ${res}`, LogLevels.TRACE);
+            this.log.show(`DataProvider.get(): ${name}`, LogLevels.TRACE);
         }
         else {
             this.log.show(`DataProvider.get(): ${name} not found`, LogLevels.TRACE);
         }
-        return res;
+        return("?");
     }
 }

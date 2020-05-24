@@ -37,11 +37,14 @@ class Slideshow {
         this.frame = new PhotoFrame(logLevel);
 
         this.data = new DataProvider(logLevel);
-        this.data.init(config.data);
 
         this.screens = new ImageGenerator(config.settings, config.screens, this.data, logLevel)
         this.backgrounds = new ImageGenerator(config.settings, config.backgrounds, this.data, logLevel);
+    }
 
+    async init():Promise<void> {
+        await this.data.add(config.data);
+        await this.screens.init();
     }
 
     async render() {
@@ -71,6 +74,7 @@ class Slideshow {
                 }
                 try {
                     const buffer = await image.jpeg({ quality: 90 }).toBuffer();
+                    this.log.show(`* ${screen.source.url}`, LogLevels.INFO);
                     await this.frame.displayImage(buffer);
                 } catch (error) {
                     this.log.show(`[ERROR] show(): ${error}`, LogLevels.ERROR);                                        
@@ -91,13 +95,13 @@ class Slideshow {
         else {
             this.showIndex = 0;
         }
-        console.log(`sleep ${timeout}ms`)
         setTimeout(() => this.show(), timeout);
     }
 
-    start() {
+    async start() {
         this.frame.checkDevices();
         this.frame.registerCallbacks();
+        await this.init();
         setTimeout(() => this.render(), 100);
         setTimeout(() => this.show(), 3000);
     }
@@ -133,5 +137,5 @@ if(rawConfig.data) {
     });
 }
 
-const slideshow = new Slideshow(config, LogLevels.TRACE);
+const slideshow = new Slideshow(config, LogLevels.INFO);
 slideshow.start();

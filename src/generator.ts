@@ -59,8 +59,24 @@ export class ImageGenerator {
             })
         });
         this.data = data;
+
     }
 
+    async init():Promise<void>{
+        for(let i=0; i< this.screens.length; i++) {
+            const screen = this.screens[i]
+            if(screen.source.url) {
+                const url = new URL(screen.source.url);
+                if(url.protocol === "mqtt:") {
+                    this.data.add([{
+                        name: url.pathname.substr(1),
+                        type: "mqtt",
+                        url: url.href
+                    }])
+                }
+            }
+        }
+    }
 
     templateEngine(input: string): string {
         const date = new Date();
@@ -101,11 +117,11 @@ export class ImageGenerator {
 
                 if (name && property) {
                     this.log.show(`templateEngine(): name=${name[1]} property=${property[1]}`, LogLevels.TRACE);
-                    res = res.replace(expression, this.data.get(name[1], property[1]));
+                    res = res.replace(expression, this.data.get(name[1], property[1]).toString());
                 }
                 else if (name) {
                     this.log.show(`templateEngine(): name=${name[1]}`, LogLevels.TRACE);
-                    res = res.replace(expression, this.data.get(name[1]));
+                    res = res.replace(expression, this.data.get(name[1]).toString());
                 }
             });
         }
@@ -159,7 +175,7 @@ export class ImageGenerator {
 
     async getUrlImage(uri: URL): Promise<sharp.Sharp | null> {
         let image: sharp.Sharp | null = null;
-        this.log.show(`getImage(): ${uri.protocol} ${uri.pathname}`, LogLevels.TRACE);
+        this.log.show(`getUrlImage(): ${uri.protocol} ${uri.pathname}`, LogLevels.TRACE);
         switch (uri.protocol) {
             case "file:":
                 image = sharp(uri.pathname, { sequentialRead: true });
@@ -171,13 +187,25 @@ export class ImageGenerator {
                     const response = await fetch(uri.href);
                     image = sharp(await response.buffer());
                 } catch (error) {
-                    this.log.show(`getImage(): '${error}'`, LogLevels.ERROR);
+                    this.log.show(`getUrlImage(): '${error}'`, LogLevels.ERROR);
+                    image = null;
+                }
+                break;
+            case "mqtt:":
+                const name = uri.pathname.substr(1);
+                const buf = this.data.get(name);
+                this.log.show(`getUrlImage(): ${uri.protocol} ${uri.pathname} length=${buf.length}`, LogLevels.TRACE);
+                try {
+                    image = sharp(buf);
+                    let temp = await image.jpeg({ quality: 90 }).toBuffer();
+                } catch (error) {
+                    this.log.show(`getUrlImage(): '${error}'`, LogLevels.ERROR);
                     image = null;
                 }
                 break;
 
             default:
-                this.log.show(`getImage(): no handler for protocol '${uri.protocol}'`, LogLevels.ERROR);
+                this.log.show(`getUrlImage(): no handler for protocol '${uri.protocol}'`, LogLevels.ERROR);
                 break;
         }
         return image;

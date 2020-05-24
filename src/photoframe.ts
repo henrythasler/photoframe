@@ -206,13 +206,13 @@ export class PhotoFrame {
     async displayFile(filename: string) {
         const header = Buffer.from([0xa5, 0x5a, 0x18, 0x04, 0, 0, 0, 0, 0x48, 0x00, 0x00, 0x00])
         try {
-            const originalImage = await sharp(filename, { sequentialRead: true });
+            const originalImage = sharp(filename, { sequentialRead: true });
             const image = await this.imagePreprocessing(originalImage).jpeg({ quality: 90 }).toBuffer();
             header.writeInt32LE(image.length, 4);
             let data = Buffer.concat([header, image]);
             const padding = 16384 - (data.length % 16384);
             data = Buffer.concat([data, Buffer.alloc(padding)]);
-            this.log.show(`Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `, LogLevels.INFO);
+            this.log.show(`Sending ${data.length} bytes. Header = '${this.log.toHexString(header)}'. Image size = ${image.length} `, LogLevels.TRACE);
             if (await this.sendData(data, 0, 2)) {
                 return true;
             }
