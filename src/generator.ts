@@ -23,6 +23,8 @@ export interface ScreenSource {
     url?: string
     domElement?: string
     domTimeout?: number
+    domWidth?: number
+    domHeight?: number
     background?: string
     blend?: Blend
 }
@@ -62,12 +64,12 @@ export class ImageGenerator {
 
     }
 
-    async init():Promise<void>{
-        for(let i=0; i< this.screens.length; i++) {
+    async init(): Promise<void> {
+        for (let i = 0; i < this.screens.length; i++) {
             const screen = this.screens[i]
-            if(screen.source.url) {
+            if (screen.source.url) {
                 const url = new URL(screen.source.url);
-                if(url.protocol === "mqtt:") {
+                if (url.protocol === "mqtt:") {
                     this.data.add([{
                         name: url.pathname.substr(1),
                         type: "mqtt",
@@ -133,12 +135,12 @@ export class ImageGenerator {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async renderHtml(url: URL, domElement?: string, domTimeout?: number): Promise<sharp.Sharp | null> {
+    async renderHtml(url: URL, domElement?: string, domTimeout?: number, customWidth?: number, customHeight?: number): Promise<sharp.Sharp | null> {
         let image: sharp.Sharp | null = null;
         const browser = await puppeteer.launch({
             defaultViewport: {
-                width: this.settings.width,
-                height: this.settings.height,
+                width: customWidth?customWidth:this.settings.width,
+                height: customHeight?customHeight:this.settings.height,
                 isLandscape: this.settings.isLandscape
             },
             executablePath: "chromium-browser",
@@ -212,7 +214,7 @@ export class ImageGenerator {
     }
 
     async renderNext(): Promise<void> {
-        if(this.screens.length) {
+        if (this.screens.length) {
             try {
                 const screen = this.screens[this.index];
                 if ((screen.renderTimestamp + screen.source.refreshSeconds * 1000) < Date.now()) {
@@ -259,7 +261,12 @@ export class ImageGenerator {
 
             case "html":
                 if (screen.source.url) {
-                    image = await this.renderHtml(new URL(this.templateEngine(screen.source.url)), screen.source.domElement, screen.source.domTimeout);
+                    image = await this.renderHtml(new URL(this.templateEngine(screen.source.url)),
+                        screen.source.domElement,
+                        screen.source.domTimeout,
+                        screen.source.domWidth,
+                        screen.source.domHeight,
+                    );
                 }
                 else {
                     this.log.show(`renderScreen(): 'screen.url' is needed for html-type.`, LogLevels.ERROR);

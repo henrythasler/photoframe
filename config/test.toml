@@ -10,13 +10,6 @@ type = "html"
 url = "file://{cwd}/html/background.html?top_left={HH}:{mm}&top_right=x&bottom_left={data:temp_in.value}%20°C&bottom_right={data:temp_out.value}%20°C"
 refreshSeconds = 30
 
-[[backgrounds]]
-name = "smiling"
-type = "html"
-url = "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/whatsapp/238/smiling-face-with-smiling-eyes-and-three-hearts_1f970.png"
-refreshSeconds = 3600
-
-
 [[data]]
 name = "temp_out"
 type = "mqtt"
@@ -44,8 +37,11 @@ showSeconds = 10
 # Bahnhof Mering
 [[screens]]
 type = "html"
-url = "https://iris.noncd.db.de/wbt/js/index.html?typ=ab&bhf=8003982&zugtyp=&platform=4&bhfname=&style=ab&via=1&impressum=1&lang=de&SecLang=&zeilen=5&paging=&pagingdauer="
+url = "https://dbf.finalrewind.org/Mering?mode=infoscreen&hide_opts=1&show_realtime=1&limit=10"
+#url = "https://iris.noncd.db.de/wbt/js/index.html?typ=ab&bhf=8003982&zugtyp=&platform=4&bhfname=&style=ab&via=1&impressum=1&lang=de&SecLang=&zeilen=5&paging=&pagingdauer="
 domTimeout = 1500
+domWidth = 1200
+domHeight = 900
 refreshSeconds = 120
 showSeconds = 10
 
@@ -93,9 +89,17 @@ showSeconds = 10
 
 [[screens]]
 type = "image"
+url = "https://www.foto-webcam.eu/webcam/murnau/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "lighten"
+showSeconds = 10
+
+[[screens]]
+type = "image"
 url = "https://www.foto-webcam.eu/webcam/peissenberg/current/720.jpg"
 refreshSeconds = 600
-background = "smiling"
+background = "clock"
 blend = "lighten"
 showSeconds = 10
 
@@ -130,7 +134,5 @@ showSeconds = 10
 [[screens]]
 type = "image"
 url = "mqtt://omv4.fritz.box:1883/home/roomba/state/livepath"
-refreshSeconds = 999999999
+refreshSeconds = 60
 showSeconds = 5
-
-
