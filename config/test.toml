@@ -37,7 +37,7 @@ showSeconds = 10
 # Bahnhof Mering
 [[screens]]
 type = "html"
-url = "https://dbf.finalrewind.org/Mering?mode=infoscreen&hide_opts=1&show_realtime=1&limit=10"
+url = "https://dbf.finalrewind.org/Mering?mode=infoscreen&hide_opts=1&show_realtime=1&limit=8"
 #url = "https://iris.noncd.db.de/wbt/js/index.html?typ=ab&bhf=8003982&zugtyp=&platform=4&bhfname=&style=ab&via=1&impressum=1&lang=de&SecLang=&zeilen=5&paging=&pagingdauer="
 domTimeout = 1500
 domWidth = 1200
@@ -90,6 +90,30 @@ showSeconds = 10
 [[screens]]
 type = "image"
 url = "https://www.foto-webcam.eu/webcam/murnau/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "lighten"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/unterammergau/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "lighten"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/kochelsee/current/720.jpg"
+refreshSeconds = 600
+background = "clock"
+blend = "lighten"
+showSeconds = 10
+
+[[screens]]
+type = "image"
+url = "https://www.foto-webcam.eu/webcam/tegelberg/current/720.jpg"
 refreshSeconds = 600
 background = "clock"
 blend = "lighten"
