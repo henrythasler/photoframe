@@ -26,7 +26,7 @@
     "async-mqtt": "^2.5.0",
     "node-fetch": "^2.6.0",
     "puppeteer": "^2.1.1",
-    "sharp": "^0.25.2",
+    "sharp": "^0.30.5",
     "usb": "^1.6.2"
   },
   "devDependencies": {
